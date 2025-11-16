@@ -364,7 +364,9 @@ memory_limit = 512M
 ### Usage
 
 1. Access via browser: `http://localhost/QuickMyImport.php`
-2. Upload SQL file or select existing file
+2. Upload SQL file or select existing file from:
+   - Uploads directory (files uploaded via web interface)
+   - Main directory (files in same folder as QuickMyImport.php)
 3. Configure database connection (host, user, password, database)
 4. Adjust batch settings (optional)
 5. Click "Start Import"
@@ -379,9 +381,13 @@ memory_limit = 512M
 
 ### Upload Directory
 
-Default: `./uploads/` (same directory as QuickMyImport.php)
+Default locations for SQL files:
+- **Uploads**: `./uploads/` (files uploaded via web interface)
+- **Main Directory**: Same folder as QuickMyImport.php (useful for files created by QuickMyDump.php)
 
-Custom location:
+Files from both locations are automatically detected and displayed in the web interface with location badges.
+
+Custom upload directory:
 ```php
 // Edit QuickMyImport.php line ~580
 $uploadDir = '/path/to/custom/uploads';

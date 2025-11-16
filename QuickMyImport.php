@@ -578,7 +578,7 @@ function render_web_interface(array $config = []): void {
         $success = "File deleted and import reset";
     }
     
-    // Get available files
+    // Get available files from uploads directory
     $availableFiles = [];
     if (is_dir($uploadDir)) {
         $files = glob($uploadDir . '/*.{sql,gz}', GLOB_BRACE);
@@ -588,14 +588,36 @@ function render_web_interface(array $config = []): void {
                 'path' => $file,
                 'size' => filesize($file),
                 'modified' => filemtime($file),
+                'location' => 'uploads',
             ];
         }
     }
     
+    // Get available files from current directory (where QuickMyImport.php is located)
+    $currentDirFiles = glob(__DIR__ . '/*.{sql,gz}', GLOB_BRACE);
+    foreach ($currentDirFiles as $file) {
+        $availableFiles[] = [
+            'name' => basename($file),
+            'path' => $file,
+            'size' => filesize($file),
+            'modified' => filemtime($file),
+            'location' => 'current',
+        ];
+    }
+    
+    // Sort files by modification time (newest first)
+    usort($availableFiles, function($a, $b) {
+        return $b['modified'] - $a['modified'];
+    });
+    
     // Get current file
     $currentFile = $_SESSION['uploaded_file'] ?? '';
-    if (isset($_POST['selected_file'])) {
-        $currentFile = $uploadDir . '/' . basename($_POST['selected_file']);
+    if (isset($_POST['selected_file']) && isset($_POST['file_location'])) {
+        if ($_POST['file_location'] === 'uploads') {
+            $currentFile = $uploadDir . '/' . basename($_POST['selected_file']);
+        } else {
+            $currentFile = __DIR__ . '/' . basename($_POST['selected_file']);
+        }
         $_SESSION['uploaded_file'] = $currentFile;
     }
     
@@ -754,17 +776,21 @@ HTML;
             foreach ($availableFiles as $file) {
                 $sizeStr = format_bytes($file['size']);
                 $dateStr = date('Y-m-d H:i:s', $file['modified']);
+                $locationBadge = $file['location'] === 'uploads' 
+                    ? '<span style="background: #4299e1; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 8px;">uploads</span>' 
+                    : '<span style="background: #48bb78; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; margin-left: 8px;">main directory</span>';
                 echo <<<HTML
                     <li class="file-item">
                         <div class="file-info">
-                            <div class="file-name">{$file['name']}</div>
+                            <div class="file-name">{$file['name']} {$locationBadge}</div>
                             <div class="file-meta">{$sizeStr} - Modified: {$dateStr}</div>
                         </div>
-                        <button type="submit" name="selected_file" value="{$file['name']}" class="btn btn-secondary">Select</button>
+                        <button type="submit" name="selected_file" value="{$file['name']}" class="btn btn-secondary" 
+                                onclick="document.querySelector('input[name=file_location]').value='{$file['location']}'">Select</button>
                     </li>
 HTML;
             }
-            echo "</ul></form>";
+            echo "<input type='hidden' name='file_location' value=''></ul></form>";
         }
     }
     
