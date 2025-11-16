@@ -216,7 +216,7 @@ class SQLFileReader {
         }
         
         $this->isGzipped = str_ends_with(strtolower($file), '.gz');
-        $this->isZipped = str_ends_with(strtolower($file), '.zip');
+        $this->isZipped = str_ends_with(strtolower($file), '.sql.zip');
         
         // Handle ZIP files - extract first .sql file to temp location
         if ($this->isZipped) {
@@ -601,43 +601,49 @@ function render_web_interface(array $config = []): void {
         if (move_uploaded_file($_FILES['sql_file']['tmp_name'], $targetPath)) {
             // Handle ZIP files - extract first .sql file
             if (str_ends_with(strtolower($filename), '.zip')) {
-                try {
-                    $zip = new ZipArchive();
-                    if ($zip->open($targetPath) === true) {
-                        // Find first .sql file in the archive
-                        $extractedFile = null;
-                        for ($i = 0; $i < $zip->numFiles; $i++) {
-                            $name = $zip->getNameIndex($i);
-                            if (str_ends_with(strtolower($name), '.sql')) {
-                                $extractedPath = $uploadDir . '/' . basename($name);
-                                if ($zip->extractTo($uploadDir, $name)) {
-                                    // Move to correct location if extracted to subdirectory
-                                    if (file_exists($uploadDir . '/' . $name)) {
-                                        rename($uploadDir . '/' . $name, $extractedPath);
+                // Only process .sql.zip files
+                if (!str_ends_with(strtolower($filename), '.sql.zip')) {
+                    $error = "Only .sql.zip files are supported. Please upload a ZIP file containing SQL database dump.";
+                    unlink($targetPath);
+                } else {
+                    try {
+                        $zip = new ZipArchive();
+                        if ($zip->open($targetPath) === true) {
+                            // Find first .sql file in the archive
+                            $extractedFile = null;
+                            for ($i = 0; $i < $zip->numFiles; $i++) {
+                                $name = $zip->getNameIndex($i);
+                                if (str_ends_with(strtolower($name), '.sql')) {
+                                    $extractedPath = $uploadDir . '/' . basename($name);
+                                    if ($zip->extractTo($uploadDir, $name)) {
+                                        // Move to correct location if extracted to subdirectory
+                                        if (file_exists($uploadDir . '/' . $name)) {
+                                            rename($uploadDir . '/' . $name, $extractedPath);
+                                        }
+                                        $extractedFile = $extractedPath;
+                                        break;
                                     }
-                                    $extractedFile = $extractedPath;
-                                    break;
                                 }
                             }
-                        }
-                        $zip->close();
-                        
-                        if ($extractedFile) {
-                            $_SESSION['uploaded_file'] = $extractedFile;
-                            $success = "ZIP file extracted successfully: " . basename($extractedFile);
-                            // Optionally delete the zip file
-                            unlink($targetPath);
+                            $zip->close();
+                            
+                            if ($extractedFile) {
+                                $_SESSION['uploaded_file'] = $extractedFile;
+                                $success = "ZIP file extracted successfully: " . basename($extractedFile);
+                                // Optionally delete the zip file
+                                unlink($targetPath);
+                            } else {
+                                $error = "No .sql file found in ZIP archive";
+                                unlink($targetPath);
+                            }
                         } else {
-                            $error = "No .sql file found in ZIP archive";
+                            $error = "Failed to open ZIP file";
                             unlink($targetPath);
                         }
-                    } else {
-                        $error = "Failed to open ZIP file";
-                        unlink($targetPath);
+                    } catch (Exception $e) {
+                        $error = "ZIP extraction error: " . $e->getMessage();
+                        if (file_exists($targetPath)) unlink($targetPath);
                     }
-                } catch (Exception $e) {
-                    $error = "ZIP extraction error: " . $e->getMessage();
-                    if (file_exists($targetPath)) unlink($targetPath);
                 }
             } else {
                 $_SESSION['uploaded_file'] = $targetPath;
@@ -668,28 +674,38 @@ function render_web_interface(array $config = []): void {
     // Get available files from uploads directory
     $availableFiles = [];
     if (is_dir($uploadDir)) {
-        $files = glob($uploadDir . '/*.{sql,gz,zip}', GLOB_BRACE);
+        $files = glob($uploadDir . '/*.{sql,zip}', GLOB_BRACE);
         foreach ($files as $file) {
-            $availableFiles[] = [
-                'name' => basename($file),
-                'path' => $file,
-                'size' => filesize($file),
-                'modified' => filemtime($file),
-                'location' => 'uploads',
-            ];
+            // Only include .sql files and .sql.zip files
+            $filename = basename($file);
+            if (str_ends_with(strtolower($filename), '.sql') || 
+                str_ends_with(strtolower($filename), '.sql.zip')) {
+                $availableFiles[] = [
+                    'name' => $filename,
+                    'path' => $file,
+                    'size' => filesize($file),
+                    'modified' => filemtime($file),
+                    'location' => 'uploads',
+                ];
+            }
         }
     }
     
     // Get available files from current directory (where QuickMyImport.php is located)
-    $currentDirFiles = glob(__DIR__ . '/*.{sql,gz,zip}', GLOB_BRACE);
+    $currentDirFiles = glob(__DIR__ . '/*.{sql,zip}', GLOB_BRACE);
     foreach ($currentDirFiles as $file) {
-        $availableFiles[] = [
-            'name' => basename($file),
-            'path' => $file,
-            'size' => filesize($file),
-            'modified' => filemtime($file),
-            'location' => 'current',
-        ];
+        $filename = basename($file);
+        // Only include .sql files and .sql.zip files
+        if (str_ends_with(strtolower($filename), '.sql') || 
+            str_ends_with(strtolower($filename), '.sql.zip')) {
+            $availableFiles[] = [
+                'name' => $filename,
+                'path' => $file,
+                'size' => filesize($file),
+                'modified' => filemtime($file),
+                'location' => 'current',
+            ];
+        }
     }
     
     // Sort files by modification time (newest first)
@@ -710,40 +726,46 @@ function render_web_interface(array $config = []): void {
         
         // Handle ZIP files - extract first .sql file
         if (str_ends_with(strtolower($selectedFile), '.zip')) {
-            try {
-                $zip = new ZipArchive();
-                if ($zip->open($currentFile) === true) {
-                    $extractedFile = null;
-                    for ($i = 0; $i < $zip->numFiles; $i++) {
-                        $name = $zip->getNameIndex($i);
-                        if (str_ends_with(strtolower($name), '.sql')) {
-                            $extractDir = ($_POST['file_location'] === 'uploads') ? $uploadDir : __DIR__;
-                            $extractedPath = $extractDir . '/' . basename($name);
-                            if ($zip->extractTo($extractDir, $name)) {
-                                if (file_exists($extractDir . '/' . $name)) {
-                                    rename($extractDir . '/' . $name, $extractedPath);
+            // Only process .sql.zip files
+            if (!str_ends_with(strtolower($selectedFile), '.sql.zip')) {
+                $error = "Only .sql.zip files are supported";
+                $currentFile = '';
+            } else {
+                try {
+                    $zip = new ZipArchive();
+                    if ($zip->open($currentFile) === true) {
+                        $extractedFile = null;
+                        for ($i = 0; $i < $zip->numFiles; $i++) {
+                            $name = $zip->getNameIndex($i);
+                            if (str_ends_with(strtolower($name), '.sql')) {
+                                $extractDir = ($_POST['file_location'] === 'uploads') ? $uploadDir : __DIR__;
+                                $extractedPath = $extractDir . '/' . basename($name);
+                                if ($zip->extractTo($extractDir, $name)) {
+                                    if (file_exists($extractDir . '/' . $name)) {
+                                        rename($extractDir . '/' . $name, $extractedPath);
+                                    }
+                                    $extractedFile = $extractedPath;
+                                    break;
                                 }
-                                $extractedFile = $extractedPath;
-                                break;
                             }
                         }
-                    }
-                    $zip->close();
-                    
-                    if ($extractedFile) {
-                        $currentFile = $extractedFile;
-                        $success = "ZIP file extracted: " . basename($extractedFile);
+                        $zip->close();
+                        
+                        if ($extractedFile) {
+                            $currentFile = $extractedFile;
+                            $success = "ZIP file extracted: " . basename($extractedFile);
+                        } else {
+                            $error = "No .sql file found in ZIP archive";
+                            $currentFile = '';
+                        }
                     } else {
-                        $error = "No .sql file found in ZIP archive";
+                        $error = "Failed to open ZIP file";
                         $currentFile = '';
                     }
-                } else {
-                    $error = "Failed to open ZIP file";
+                } catch (Exception $e) {
+                    $error = "ZIP extraction error: " . $e->getMessage();
                     $currentFile = '';
                 }
-            } catch (Exception $e) {
-                $error = "ZIP extraction error: " . $e->getMessage();
-                $currentFile = '';
             }
         }
         
@@ -897,8 +919,9 @@ HTML;
         echo <<<HTML
                 <form method="POST" enctype="multipart/form-data">
                     <div class="form-group">
-                        <label>Upload SQL File (.sql, .gz, or .zip)</label>
-                        <input type="file" name="sql_file" accept=".sql,.gz,.zip" required>
+                        <label>Upload SQL File (.sql or .sql.zip)</label>
+                        <input type="file" name="sql_file" accept=".sql,.zip" required>
+                        <small style="display: block; margin-top: 5px; color: #718096;">Accepted: .sql files or .sql.zip archives containing SQL dumps</small>
                     </div>
                     <button type="submit" class="btn btn-primary">Upload File</button>
                 </form>
