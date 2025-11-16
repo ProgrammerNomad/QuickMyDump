@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickMyDump - Database Tools</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .container { max-width: 800px; width: 100%; background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center; }
+        .header h1 { font-size: 36px; margin-bottom: 10px; }
+        .header p { opacity: 0.9; font-size: 16px; }
+        .content { padding: 40px; }
+        .tool-card { background: #f7fafc; border: 2px solid #e2e8f0; border-radius: 8px; padding: 30px; margin-bottom: 20px; transition: all 0.3s; }
+        .tool-card:hover { border-color: #667eea; box-shadow: 0 4px 12px rgba(102,126,234,0.15); }
+        .tool-card h2 { color: #2d3748; margin-bottom: 15px; font-size: 24px; }
+        .tool-card p { color: #4a5568; margin-bottom: 20px; line-height: 1.6; }
+        .tool-card ul { color: #4a5568; margin-left: 20px; margin-bottom: 20px; }
+        .tool-card li { margin-bottom: 8px; }
+        .btn { display: inline-block; padding: 14px 28px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; border-radius: 6px; font-weight: 500; transition: all 0.3s; font-size: 16px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+        .info { background: #e6fffa; border-left: 4px solid #38b2ac; padding: 15px; border-radius: 4px; margin-top: 30px; }
+        .info strong { color: #234e52; }
+        .info p { color: #2c7a7b; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>QuickMyDump</h1>
+            <p>MySQL Database Export & Import Tools</p>
+        </div>
+        <div class="content">
+            <div class="tool-card">
+                <h2>QuickMyImport - Web Interface</h2>
+                <p>Import MySQL database backups with visual progress tracking and resume capability.</p>
+                <ul>
+                    <li>Upload SQL files (.sql or .gz)</li>
+                    <li>Select from existing files in uploads or main directory</li>
+                    <li>Real-time progress tracking</li>
+                    <li>Automatic resume on interruption</li>
+                    <li>Session-based processing (no timeouts)</li>
+                </ul>
+                <a href="QuickMyImport.php" class="btn">Open Import Tool</a>
+            </div>
+
+            <div class="info">
+                <strong>Available Files:</strong>
+                <p>The web interface will automatically detect SQL files from:</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>uploads/</strong> directory (uploaded files)</li>
+                    <li><strong>Main directory</strong> (files in QuickMyDump folder, including sample-test.sql)</li>
+                </ul>
+            </div>
+
+            <div class="info" style="margin-top: 15px;">
+                <strong>Quick Test:</strong>
+                <p>A sample file <code>sample-test.sql</code> is available in the main directory for testing.</p>
+                <p>Create a test database first: <code>CREATE DATABASE test_import;</code></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

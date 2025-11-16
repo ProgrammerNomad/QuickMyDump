@@ -578,6 +578,13 @@ function render_web_interface(array $config = []): void {
         $success = "File deleted and import reset";
     }
     
+    // Handle reset/clear selection
+    if (isset($_POST['clear_selection'])) {
+        unset($_SESSION['uploaded_file']);
+        unset($_SESSION['import_state']);
+        $success = "Selection cleared";
+    }
+    
     // Get available files from uploads directory
     $availableFiles = [];
     if (is_dir($uploadDir)) {
@@ -758,6 +765,9 @@ HTML;
                 <form method="POST" style="display: inline;">
                     <button type="submit" name="delete_file" value="1" class="btn btn-danger">Delete File & Reset</button>
                 </form>
+                <form method="POST" style="display: inline; margin-left: 10px;">
+                    <button type="submit" name="clear_selection" value="1" class="btn btn-secondary">Change File</button>
+                </form>
 HTML;
     } else {
         echo <<<HTML
@@ -791,6 +801,8 @@ HTML;
 HTML;
             }
             echo "<input type='hidden' name='file_location' value=''></ul></form>";
+        } else {
+            echo "<p style='margin-top: 15px; color: #718096; font-style: italic;'>No SQL files found in uploads or main directory. Please upload a file above.</p>";
         }
     }
     
