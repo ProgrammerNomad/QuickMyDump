@@ -287,16 +287,18 @@ class SQLFileReader {
         while (true) {
             if (empty($this->buffer)) {
                 if ($this->isGzipped) {
-                    $this->buffer = gzeof($this->handle) ? '' : gzgets($this->handle, 8192);
+                    $line = gzeof($this->handle) ? false : gzgets($this->handle, 8192);
                 } else {
-                    $this->buffer = feof($this->handle) ? '' : fgets($this->handle, 8192);
+                    $line = feof($this->handle) ? false : fgets($this->handle, 8192);
                 }
                 
-                if ($this->buffer === '' || $this->buffer === false) {
+                if ($line === false || $line === '') {
                     // End of file
                     $trimmed = trim($statement);
                     return $trimmed !== '' ? $trimmed : null;
                 }
+                
+                $this->buffer = $line;
             }
             
             $line = $this->buffer;
@@ -615,6 +617,17 @@ function render_web_interface(array $config = []): void {
                                 $name = $zip->getNameIndex($i);
                                 if (str_ends_with(strtolower($name), '.sql')) {
                                     $extractedPath = $uploadDir . '/' . basename($name);
+                                    
+                                    // Check if file already exists and create unique name if needed
+                                    if (file_exists($extractedPath)) {
+                                        $pathInfo = pathinfo($extractedPath);
+                                        $counter = 1;
+                                        do {
+                                            $extractedPath = $uploadDir . '/' . $pathInfo['filename'] . '_' . $counter . '.' . $pathInfo['extension'];
+                                            $counter++;
+                                        } while (file_exists($extractedPath));
+                                    }
+                                    
                                     if ($zip->extractTo($uploadDir, $name)) {
                                         // Move to correct location if extracted to subdirectory
                                         if (file_exists($uploadDir . '/' . $name)) {
@@ -629,8 +642,9 @@ function render_web_interface(array $config = []): void {
                             
                             if ($extractedFile) {
                                 $_SESSION['uploaded_file'] = $extractedFile;
+                                $_SESSION['extracted_file'] = $extractedFile; // Mark for cleanup after import
                                 $success = "ZIP file extracted successfully: " . basename($extractedFile);
-                                // Optionally delete the zip file
+                                // Delete the zip file after extraction
                                 unlink($targetPath);
                             } else {
                                 $error = "No .sql file found in ZIP archive";
@@ -660,6 +674,7 @@ function render_web_interface(array $config = []): void {
             unlink($_SESSION['uploaded_file']);
         }
         unset($_SESSION['uploaded_file']);
+        unset($_SESSION['extracted_file']);
         unset($_SESSION['import_state']);
         $success = "File deleted and import reset";
     }
@@ -667,8 +682,35 @@ function render_web_interface(array $config = []): void {
     // Handle reset/clear selection
     if (isset($_POST['clear_selection'])) {
         unset($_SESSION['uploaded_file']);
+        unset($_SESSION['extracted_file']);
         unset($_SESSION['import_state']);
         $success = "Selection cleared";
+    }
+    
+    // Handle delete file from list
+    if (isset($_POST['delete_listed_file']) && isset($_POST['file_location'])) {
+        $fileToDelete = basename($_POST['delete_listed_file']);
+        $deleteLocation = $_POST['file_location'];
+        
+        if ($deleteLocation === 'uploads') {
+            $filePath = $uploadDir . '/' . $fileToDelete;
+        } else {
+            $filePath = __DIR__ . '/' . $fileToDelete;
+        }
+        
+        if (file_exists($filePath)) {
+            unlink($filePath);
+            $success = "File deleted successfully: {$fileToDelete}";
+            
+            // Clear session if deleted file was the current file
+            if (isset($_SESSION['uploaded_file']) && $_SESSION['uploaded_file'] === $filePath) {
+                unset($_SESSION['uploaded_file']);
+                unset($_SESSION['extracted_file']);
+                unset($_SESSION['import_state']);
+            }
+        } else {
+            $error = "File not found: {$fileToDelete}";
+        }
     }
     
     // Get available files from uploads directory
@@ -740,6 +782,17 @@ function render_web_interface(array $config = []): void {
                             if (str_ends_with(strtolower($name), '.sql')) {
                                 $extractDir = ($_POST['file_location'] === 'uploads') ? $uploadDir : __DIR__;
                                 $extractedPath = $extractDir . '/' . basename($name);
+                                
+                                // Check if file already exists and create unique name if needed
+                                if (file_exists($extractedPath)) {
+                                    $pathInfo = pathinfo($extractedPath);
+                                    $counter = 1;
+                                    do {
+                                        $extractedPath = $extractDir . '/' . $pathInfo['filename'] . '_' . $counter . '.' . $pathInfo['extension'];
+                                        $counter++;
+                                    } while (file_exists($extractedPath));
+                                }
+                                
                                 if ($zip->extractTo($extractDir, $name)) {
                                     if (file_exists($extractDir . '/' . $name)) {
                                         rename($extractDir . '/' . $name, $extractedPath);
@@ -753,6 +806,7 @@ function render_web_interface(array $config = []): void {
                         
                         if ($extractedFile) {
                             $currentFile = $extractedFile;
+                            $_SESSION['extracted_file'] = $extractedFile; // Mark for cleanup after import
                             $success = "ZIP file extracted: " . basename($extractedFile);
                         } else {
                             $error = "No .sql file found in ZIP archive";
@@ -854,53 +908,10 @@ HTML;
         echo "<div class='alert alert-success'>{$success}</div>";
     }
     
-    // Configuration Form
+    // File Upload/Selection (MOVED TO TOP)
     echo <<<HTML
             <div class="section">
-                <h2>Database Configuration</h2>
-                <form method="POST" id="configForm">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Host</label>
-                            <input type="text" name="host" value="127.0.0.1" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Port</label>
-                            <input type="number" name="port" value="3306" required>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Username</label>
-                            <input type="text" name="user" value="root" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Password</label>
-                            <input type="password" name="pass">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>Database Name</label>
-                        <input type="text" name="db" required>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Batch Size</label>
-                            <input type="number" name="batch_size" value="100" min="1">
-                        </div>
-                        <div class="form-group">
-                            <label>Statements per Execution</label>
-                            <input type="number" name="statements_per_run" value="300" min="1">
-                        </div>
-                    </div>
-                </form>
-            </div>
-HTML;
-    
-    // File Upload/Selection
-    echo <<<HTML
-            <div class="section">
-                <h2>SQL File</h2>
+                <h2>1. Select SQL File</h2>
 HTML;
     
     if ($currentFile && file_exists($currentFile)) {
@@ -942,8 +953,12 @@ HTML;
                             <div class="file-name">{$file['name']} {$locationBadge}</div>
                             <div class="file-meta">{$sizeStr} - Modified: {$dateStr}</div>
                         </div>
-                        <button type="submit" name="selected_file" value="{$file['name']}" class="btn btn-secondary" 
-                                onclick="document.querySelector('input[name=file_location]').value='{$file['location']}'">Select</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="submit" name="selected_file" value="{$file['name']}" class="btn btn-secondary" 
+                                    onclick="document.querySelector('input[name=file_location]').value='{$file['location']}'">Select</button>
+                            <button type="submit" name="delete_listed_file" value="{$file['name']}" class="btn btn-danger" 
+                                    onclick="if(!confirm('Are you sure you want to delete {$file['name']}?')) return false; document.querySelector('input[name=file_location]').value='{$file['location']}'">Delete</button>
+                        </div>
                     </li>
 HTML;
             }
@@ -955,6 +970,49 @@ HTML;
     
     echo "</div>";
     
+    // Database Configuration Form (MOVED AFTER FILE SELECTION)
+    echo <<<HTML
+            <div class="section">
+                <h2>2. Database Configuration</h2>
+                <form method="POST" id="configForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Host</label>
+                            <input type="text" name="host" value="127.0.0.1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Port</label>
+                            <input type="number" name="port" value="3306" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" name="user" value="root" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" name="pass">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Database Name</label>
+                        <input type="text" name="db" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Batch Size</label>
+                            <input type="number" name="batch_size" value="100" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Statements per Execution</label>
+                            <input type="number" name="statements_per_run" value="300" min="1">
+                        </div>
+                    </div>
+                </form>
+            </div>
+HTML;
+    
     // Import Controls
     if ($currentFile && file_exists($currentFile)) {
         $inProgress = isset($_SESSION['import_state']) && $_SESSION['import_state']['status'] === 'running';
@@ -962,7 +1020,7 @@ HTML;
         
         echo <<<HTML
             <div class="section">
-                <h2>Import Control</h2>
+                <h2>3. Import Control</h2>
 HTML;
         
         if ($isComplete) {
@@ -1241,6 +1299,12 @@ function handle_web_import(): void {
             $state['status'] = 'completed';
             if (file_exists($checkpointFile)) {
                 unlink($checkpointFile);
+            }
+            
+            // Clean up extracted file if import was successful
+            if (isset($_SESSION['extracted_file']) && file_exists($_SESSION['extracted_file'])) {
+                unlink($_SESSION['extracted_file']);
+                unset($_SESSION['extracted_file']);
             }
         }
         
