@@ -7,7 +7,7 @@ Modern MySQL database export and import tool for PHP 8+ with resume capability f
 - Memory-efficient streaming (handles unlimited database sizes)
 - Resume interrupted exports and imports from checkpoint
 - Schema-only and data-only export modes  
-- Gzip compression support
+- Gzip and ZIP compression support
 - PDO with mysqli fallback
 - Extended INSERT statements for faster imports
 - Table filtering with patterns
@@ -48,7 +48,7 @@ php QuickMyImport.php --db=mydb --file=backup.sql.gz
 ### Import Database (Web Interface)
 
 1. Access via browser: `http://localhost/QuickMyDump/QuickMyImport.php`
-2. Upload or select SQL file (.sql or .gz)
+2. Upload or select SQL file (.sql, .gz, or .zip)
 3. Configure database connection
 4. Click "Start Import"
 5. Progress tracked with automatic resume capability

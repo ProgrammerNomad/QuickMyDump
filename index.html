@@ -36,8 +36,9 @@
                 <h2>QuickMyImport - Web Interface</h2>
                 <p>Import MySQL database backups with visual progress tracking and resume capability.</p>
                 <ul>
-                    <li>Upload SQL files (.sql or .gz)</li>
+                    <li>Upload SQL files (.sql, .gz, or .zip)</li>
                     <li>Select from existing files in uploads or main directory</li>
+                    <li>Automatic ZIP extraction (first .sql file)</li>
                     <li>Real-time progress tracking</li>
                     <li>Automatic resume on interruption</li>
                     <li>Session-based processing (no timeouts)</li>
@@ -50,13 +51,14 @@
                 <p>The web interface will automatically detect SQL files from:</p>
                 <ul style="margin-left: 20px; margin-top: 10px;">
                     <li><strong>uploads/</strong> directory (uploaded files)</li>
-                    <li><strong>Main directory</strong> (files in QuickMyDump folder, including sample-test.sql)</li>
+                    <li><strong>Main directory</strong> (files in QuickMyDump folder)</li>
                 </ul>
+                <p style="margin-top: 10px;"><strong>Supported formats:</strong> .sql, .gz (gzip), .zip (ZIP archives)</p>
             </div>
 
             <div class="info" style="margin-top: 15px;">
                 <strong>Quick Test:</strong>
-                <p>A sample file <code>sample-test.sql</code> is available in the main directory for testing.</p>
+                <p>Sample files available: <code>sample-test.sql</code> and <code>sample-test.sql.zip</code></p>
                 <p>Create a test database first: <code>CREATE DATABASE test_import;</code></p>
             </div>
         </div>
