@@ -1,0 +1,117 @@
+{
+  "profiles": {
+    "production": {
+      "host": "prod.example.com",
+      "port": 3306,
+      "user": "backup_user",
+      "pass": "your_password_here",
+      "db": "production_db",
+      "outfile": "/backups/production_backup.sql.gz",
+      "gzip": true,
+      "extended-insert": true,
+      "max-rows": 5000,
+      "exclude": "cache_%,sessions,tmp_%,%_temp",
+      "routines": true,
+      "triggers": true,
+      "views": true,
+      "drop-table": true,
+      "single-transaction": true,
+      "hex-blob": true,
+      "checkpoint": "/var/lib/mysql-backups/production.checkpoint",
+      "logfile": "/var/log/mysql-backups/production.log",
+      "verbose": false
+    },
+    
+    "development": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "dev_user",
+      "pass": "dev_password",
+      "db": "dev_database",
+      "outfile": "/tmp/dev_backup.sql",
+      "gzip": false,
+      "extended-insert": true,
+      "max-rows": 1000,
+      "exclude": "test_%",
+      "routines": true,
+      "triggers": true,
+      "views": true,
+      "drop-table": true,
+      "verbose": true
+    },
+    
+    "schema-only": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "root",
+      "pass": "",
+      "db": "mydb",
+      "outfile": "schema_only.sql",
+      "schema-only": true,
+      "routines": true,
+      "triggers": true,
+      "views": true,
+      "drop-table": true
+    },
+    
+    "data-only": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "root",
+      "pass": "",
+      "db": "mydb",
+      "outfile": "data_only.sql.gz",
+      "gzip": true,
+      "data-only": true,
+      "extended-insert": true,
+      "max-rows": 5000,
+      "hex-blob": true
+    },
+    
+    "specific-tables": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "root",
+      "pass": "",
+      "db": "mydb",
+      "tables": "users,orders,products,customers",
+      "outfile": "critical_tables.sql.gz",
+      "gzip": true,
+      "extended-insert": true,
+      "drop-table": true,
+      "single-transaction": true
+    },
+    
+    "large-database": {
+      "host": "localhost",
+      "port": 3306,
+      "user": "backup_user",
+      "pass": "backup_password",
+      "db": "large_db",
+      "outfile": "/backups/large_db.sql.gz",
+      "gzip": true,
+      "extended-insert": true,
+      "max-rows": 10000,
+      "single-transaction": true,
+      "hex-blob": true,
+      "checkpoint": "/tmp/large_db.checkpoint",
+      "logfile": "/var/log/large_db_backup.log",
+      "verbose": true,
+      "exclude": "log_%,audit_%,cache_%"
+    }
+  },
+  
+  "default": {
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "pass": "",
+    "gzip": true,
+    "extended-insert": true,
+    "max-rows": 1000,
+    "routines": true,
+    "triggers": true,
+    "views": true,
+    "drop-table": true
+  }
+}

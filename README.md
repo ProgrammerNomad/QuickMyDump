@@ -1,301 +1,508 @@
 # QuickMyDump
 
-A modern, memory-efficient MySQL database dumper for PHP 8+ designed specifically for handling large databases.
-
-## Overview
-
-QuickMyDump is a single-file PHP utility that provides a lightweight alternative to mysqldump with advanced features for exporting large MySQL databases. It uses streaming output to minimize memory consumption and supports both command-line and web-based interfaces.
+Modern MySQL database export and import tool for PHP 8+ with resume capability for large databases.
 
 ## Features
 
-### Core Capabilities
-- Memory-efficient streaming output (no database size limits)
-- Dual database driver support (PDO with automatic mysqli fallback)
-- Gzip compression for reduced file sizes
-- Chunked data fetching to prevent memory exhaustion
+- Memory-efficient streaming (handles unlimited database sizes)
+- Resume interrupted exports and imports from checkpoint
+- Schema-only and data-only export modes  
+- Gzip compression support
+- PDO with mysqli fallback
 - Extended INSERT statements for faster imports
-- Support for tables, views, triggers, stored procedures, and functions
-
-### Filtering Options
-- Include specific tables by name
-- Exclude tables by pattern matching (prefix, suffix, or wildcard)
-- Selective export of schema components
-
-### Export Options
-- Schema export (CREATE TABLE/VIEW statements)
-- Data export with configurable chunk sizes
-- Stored routines (procedures and functions)
-- Triggers
-- Views
-- Optional DROP TABLE IF EXISTS statements
+- Table filtering with patterns
+- Binary data HEX encoding
+- Single-transaction mode for InnoDB
+- Progress tracking and logging
+- Configuration file support
+- Both CLI and web interfaces
 
 ## Requirements
 
-- PHP 8.0 or higher
-- One of the following PHP extensions:
-  - PDO_MYSQL (preferred)
-  - mysqli (automatic fallback)
+- PHP 8.0+
+- PDO_MYSQL or mysqli extension
 - MySQL 5.7+ or MariaDB 10.2+
-- Sufficient disk space for export file
-- For large databases: CLI access recommended
+- CLI recommended for databases >1GB
 
 ## Installation
-
-Download the single PHP file to your system:
-
-```bash
-wget https://raw.githubusercontent.com/ProgrammerNomad/QuickMyDump/main/QuickMyDump.php
-```
-
-Or clone the repository:
 
 ```bash
 git clone https://github.com/ProgrammerNomad/QuickMyDump.git
 cd QuickMyDump
 ```
 
-No additional installation or dependencies required.
+## Quick Start
 
-## Usage
-
-### Command Line Interface (Recommended for Large Databases)
-
-#### Basic Usage
+### Export Database (CLI)
 
 ```bash
-php QuickMyDump.php --host=127.0.0.1 --user=root --pass=yourpassword --db=mydatabase --outfile=backup.sql
+php QuickMyDump.php --db=mydb --outfile=backup.sql.gz --gzip
 ```
 
-#### Complete Example with All Options
+### Import Database (CLI)
 
 ```bash
-php QuickMyDump.php \
-    --host=127.0.0.1 \
-    --port=3306 \
-    --user=root \
-    --pass=secret \
-    --db=production_db \
-    --outfile=backup.sql.gz \
-    --gzip \
-    --exclude=cache_,tmp_,sessions% \
-    --extended-insert \
-    --max-rows=1000 \
-    --routines \
-    --triggers \
-    --views \
-    --drop-table
+php QuickMyImport.php --db=mydb --file=backup.sql.gz
 ```
 
-#### Output to stdout
+### Import Database (Web Interface)
 
+1. Access via browser: `http://localhost/QuickMyDump/QuickMyImport.php`
+2. Upload or select SQL file (.sql or .gz)
+3. Configure database connection
+4. Click "Start Import"
+5. Progress tracked with automatic resume capability
+
+### Resume Interrupted Operations
+
+Export:
 ```bash
-php QuickMyDump.php --host=127.0.0.1 --user=root --pass=secret --db=mydb > output.sql
+php QuickMyDump.php --resume --checkpoint=/tmp/backup.checkpoint
 ```
 
-#### Using Unix Socket
-
+Import:
 ```bash
-php QuickMyDump.php --socket=/var/run/mysqld/mysqld.sock --user=root --db=mydb --outfile=dump.sql
+php QuickMyImport.php --resume --checkpoint=/tmp/import.checkpoint
 ```
 
-### Web Interface (For Testing or Small Databases)
+## Export Options
 
-1. Place QuickMyDump.php in your web server document root
-2. Navigate to the file in your browser (e.g., http://localhost/QuickMyDump.php)
-3. Fill out the form with your database credentials
-4. Click "Start Dump" to export the database server-side
-
-Note: Web interface is not recommended for large databases due to PHP execution time limits and browser timeouts.
-
-## Command Line Parameters
-
-### Connection Parameters
+### Connection
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| --host | MySQL server hostname or IP address | 127.0.0.1 |
-| --port | MySQL server port | 3306 |
-| --socket | Unix socket path (overrides host/port) | empty |
-| --user | Database username | root |
-| --pass | Database password | empty |
-| --db | Database name to export | required |
+| --host | MySQL hostname | 127.0.0.1 |
+| --port | MySQL port | 3306 |
+| --user | Database user | root |
+| --pass | Password | empty |
+| --db | Database name | required |
 
-### Output Parameters
+### Output
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| --outfile | Output file path (omit for stdout) | stdout |
+| --outfile | Output file path | stdout |
 | --gzip | Enable gzip compression | false |
+
+### Export Modes
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| --schema-only | Export only structure | false |
+| --data-only | Export only data | false |
+| --extended-insert | Multi-row INSERTs | true |
+| --max-rows | Rows per chunk | 1000 |
+| --hex-blob | HEX encode binary | false |
+| --single-transaction | InnoDB snapshot | false |
 
 ### Table Selection
 
+| Parameter | Description |
+|-----------|-------------|
+| --tables | Specific tables (comma-separated) |
+| --exclude | Exclude patterns (comma-separated) |
+| --routines | Export procedures/functions |
+| --triggers | Export triggers |
+| --views | Export views |
+| --drop-table | Add DROP TABLE statements |
+
+### Resume & Logging
+
+| Parameter | Description |
+|-----------|-------------|
+| --checkpoint | Checkpoint file path |
+| --resume | Resume from checkpoint |
+| --verbose | Detailed output |
+| --logfile | Log file path |
+| --config | JSON config file |
+| --profile | Config profile name |
+
+## Import Options
+
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| --tables | Comma-separated list of tables to include | all tables |
-| --exclude | Comma-separated exclude patterns | empty |
-
-### Export Options
-
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| --extended-insert | Use multi-row INSERT statements | true |
-| --max-rows | Number of rows to fetch per chunk | 1000 |
-| --routines | Export stored procedures and functions | true |
-| --triggers | Export triggers | true |
-| --views | Export views | true |
-| --drop-table | Include DROP TABLE IF EXISTS statements | true |
-
-## Exclude Patterns
-
-The --exclude parameter supports flexible pattern matching:
-
-### Prefix Matching
-```bash
---exclude=cache_,tmp_,test_
-```
-Excludes tables starting with cache_, tmp_, or test_
-
-### Suffix Matching
-```bash
---exclude=%_old,%_backup
-```
-Excludes tables ending with _old or _backup
-
-### Wildcard Matching
-```bash
---exclude=*temp*,*session*
-```
-Excludes tables containing temp or session anywhere in the name
-
-## Performance Optimization
-
-### For Large Databases (100GB+)
-
-1. Use CLI interface instead of web
-2. Increase chunk size for faster exports:
-   ```bash
-   --max-rows=5000
-   ```
-3. Enable gzip compression to reduce I/O:
-   ```bash
-   --gzip --outfile=backup.sql.gz
-   ```
-4. Use extended inserts for faster imports:
-   ```bash
-   --extended-insert
-   ```
-
-### For Very Large Tables
-
-Adjust chunk size based on average row size:
-- Small rows (< 1KB): --max-rows=10000
-- Medium rows (1-10KB): --max-rows=1000
-- Large rows (> 10KB): --max-rows=100
-
-### Memory Considerations
-
-The script sets memory_limit to unlimited and removes execution time limits. For shared hosting environments, you may need to adjust these in php.ini or use CLI with appropriate resource limits.
-
-## Import Exported Files
-
-### Standard SQL File
-```bash
-mysql -u root -p database_name < backup.sql
-```
-
-### Gzipped SQL File
-```bash
-gunzip < backup.sql.gz | mysql -u root -p database_name
-```
-
-Or use zcat:
-```bash
-zcat backup.sql.gz | mysql -u root -p database_name
-```
+| --file | SQL file to import | required |
+| --batch-size | Statements per commit | 100 |
+| --stop-on-error | Stop on first error | false |
+| --ignore-table-exists | Ignore table exists errors | false |
 
 ## Examples
 
-### Export Specific Tables Only
+### Basic Export with Compression
+
 ```bash
-php QuickMyDump.php --db=mydb --tables=users,orders,products --outfile=partial.sql
+php QuickMyDump.php \
+    --db=production \
+    --outfile=prod_backup.sql.gz \
+    --gzip \
+    --single-transaction \
+    --verbose
 ```
 
-### Export Without Routines and Triggers
+### Export Schema Only
+
 ```bash
-php QuickMyDump.php --db=mydb --routines=false --triggers=false --outfile=schema_only.sql
+php QuickMyDump.php --db=mydb --schema-only --outfile=schema.sql
 ```
 
-### Exclude Cache and Temporary Tables
+### Export Specific Tables
+
 ```bash
-php QuickMyDump.php --db=mydb --exclude=cache_,tmp_,%temp% --outfile=clean_backup.sql.gz --gzip
+php QuickMyDump.php \
+    --db=mydb \
+    --tables=users,orders,products \
+    --outfile=critical.sql.gz \
+    --gzip
 ```
 
-### Quick Backup with Compression
+### Exclude Cache Tables
+
 ```bash
-php QuickMyDump.php --db=production --gzip --outfile=/backups/prod_$(date +%Y%m%d).sql.gz
+php QuickMyDump.php \
+    --db=mydb \
+    --exclude=cache_%,tmp_%,sessions \
+    --outfile=backup.sql.gz \
+    --gzip
 ```
 
-## Advantages Over mysqldump
+### Large Database with Resume
 
-1. Pure PHP implementation (no mysqldump binary required)
-2. Better memory efficiency through streaming
-3. Flexible table filtering with pattern matching
-4. Automatic fallback between PDO and mysqli
-5. Built-in web interface for convenience
-6. Single file deployment
+```bash
+php QuickMyDump.php \
+    --db=largedb \
+    --outfile=large.sql.gz \
+    --gzip \
+    --max-rows=5000 \
+    --single-transaction \
+    --hex-blob \
+    --checkpoint=/tmp/large.checkpoint \
+    --logfile=/var/log/backup.log \
+    --verbose
+```
 
-## Limitations
+### Import with Resume Support
 
-1. Does not support:
-   - Remote import (only export)
-   - Incremental backups
-   - Binary data types may need special handling
-   - Cross-database exports in single operation
-   
-2. Web interface limitations:
-   - Subject to PHP max_execution_time
-   - Not suitable for databases > 1GB
-   - Requires server-side file write permissions
+```bash
+php QuickMyImport.php \
+    --db=mydb \
+    --file=backup.sql.gz \
+    --checkpoint=/tmp/import.checkpoint \
+    --batch-size=200 \
+    --ignore-table-exists \
+    --verbose
+```
 
-## Security Considerations
+### Using Configuration File
 
-1. Never expose the web interface on production systems without authentication
-2. Store credentials securely (use environment variables or config files)
-3. Ensure export files are written to secure locations with proper permissions
-4. Delete or secure backup files after transfer
-5. Use SSL/TLS for MySQL connections when exporting over networks
+```bash
+# Create config from example
+cp config.example.json config.json
+
+# Edit config.json with your settings
+
+# Use profile
+php QuickMyDump.php --config=config.json --profile=production
+```
+
+## Exclude Patterns
+
+### Prefix Match
+```bash
+--exclude=cache_,tmp_,test_
+```
+Excludes tables starting with these prefixes
+
+### Suffix Match
+```bash
+--exclude=%_old,%_backup
+```
+Excludes tables ending with these suffixes
+
+### Wildcard Match
+```bash
+--exclude=*temp*,*session*
+```
+Excludes tables containing these strings
+
+## Resume Capability
+
+QuickMyDump automatically saves progress to checkpoint files. If interrupted:
+
+1. The checkpoint tracks completed tables and current position
+2. Use `--resume` to continue from last checkpoint
+3. Checkpoint auto-deletes on successful completion
+
+### Export Resume
+```bash
+# Start export
+php QuickMyDump.php --db=bigdb --outfile=big.sql.gz --gzip --checkpoint=/tmp/big.checkpoint
+
+# If interrupted, resume:
+php QuickMyDump.php --resume --checkpoint=/tmp/big.checkpoint
+```
+
+### Import Resume
+```bash
+# Start import  
+php QuickMyImport.php --db=mydb --file=big.sql.gz --checkpoint=/tmp/import.checkpoint
+
+# If failed, resume:
+php QuickMyImport.php --resume --checkpoint=/tmp/import.checkpoint
+```
+
+## Configuration File
+
+Create `config.json` for multiple database profiles:
+
+```json
+{
+  "profiles": {
+    "production": {
+      "host": "prod.example.com",
+      "user": "backup_user",
+      "pass": "password",
+      "db": "production_db",
+      "outfile": "/backups/prod.sql.gz",
+      "gzip": true,
+      "exclude": "cache_%,sessions",
+      "single-transaction": true,
+      "hex-blob": true
+    },
+    "development": {
+      "host": "localhost",
+      "user": "dev",
+      "db": "dev_db",
+      "outfile": "/tmp/dev.sql"
+    }
+  }
+}
+```
+
+See `config.example.json` for more examples.
+
+## Performance Tips
+
+### Large Databases (100GB+)
+- Use `--gzip` to reduce file size
+- Increase `--max-rows=10000` for better speed
+- Enable `--single-transaction` for consistency
+- Use `--checkpoint` for resume capability
+- Use `--hex-blob` for binary data
+
+### Optimize Chunk Size
+- Small rows (<1KB): `--max-rows=10000`
+- Medium rows (1-10KB): `--max-rows=5000`  
+- Large rows (>10KB): `--max-rows=100`
+
+### Faster Imports
+- Increase `--batch-size=500`
+- Use checkpoints for safety
+- Use `--ignore-table-exists` when needed
+
+## Automated Backups
+
+Create backup script `/usr/local/bin/daily-backup.sh`:
+
+```bash
+#!/bin/bash
+DATE=$(date +%Y%m%d)
+BACKUP_DIR="/backups/mysql"
+
+php /usr/local/bin/QuickMyDump.php \
+    --db=production \
+    --outfile="${BACKUP_DIR}/prod_${DATE}.sql.gz" \
+    --gzip \
+    --single-transaction \
+    --hex-blob \
+    --checkpoint="/tmp/prod_backup.checkpoint" \
+    --logfile="${BACKUP_DIR}/backup_${DATE}.log"
+
+# Keep last 7 days
+find ${BACKUP_DIR} -name "prod_*.sql.gz" -mtime +7 -delete
+```
+
+Add to crontab:
+```bash
+0 2 * * * /usr/local/bin/daily-backup.sh
+```
+
+## Web Interface (Import Only)
+
+QuickMyImport includes a modern web interface with session-based processing and automatic resume capability.
+
+### Features
+
+- File upload support (.sql and .gz files)
+- Real-time progress tracking
+- Session-based processing (no timeout issues)
+- Automatic resume on connection loss
+- Statistics dashboard
+- Visual progress bar
+- Error tracking
+
+### Setup
+
+1. Copy QuickMyImport.php to your web directory:
+```bash
+cp QuickMyImport.php /var/www/html/
+```
+
+2. Create uploads directory with write permissions:
+```bash
+mkdir /var/www/html/uploads
+chmod 755 /var/www/html/uploads
+```
+
+3. Configure PHP settings in php.ini:
+```ini
+upload_max_filesize = 2G
+post_max_size = 2G
+max_execution_time = 300
+memory_limit = 512M
+```
+
+### Usage
+
+1. Access via browser: `http://localhost/QuickMyImport.php`
+2. Upload SQL file or select existing file
+3. Configure database connection (host, user, password, database)
+4. Adjust batch settings (optional)
+5. Click "Start Import"
+6. Progress updates automatically
+7. Import can be stopped and resumed
+
+### Configuration
+
+- **Batch Size**: Statements per transaction commit (default: 100)
+- **Statements per Execution**: Statements processed per HTTP request (default: 300)
+- Higher values = faster but more memory usage
+
+### Upload Directory
+
+Default: `./uploads/` (same directory as QuickMyImport.php)
+
+Custom location:
+```php
+// Edit QuickMyImport.php line ~580
+$uploadDir = '/path/to/custom/uploads';
+```
+
+### Security Recommendations
+
+1. Add HTTP authentication (.htaccess):
+```apache
+AuthType Basic
+AuthName "Restricted Area"
+AuthUserFile /path/to/.htpasswd
+Require valid-user
+```
+
+2. Restrict by IP:
+```apache
+Order Deny,Allow
+Deny from all
+Allow from 192.168.1.0/24
+```
+
+3. Remove after use:
+```bash
+rm QuickMyImport.php
+```
+
+### Limitations
+
+- Designed for databases up to 10GB
+- Larger files work but take longer
+- For 50GB+ databases, use CLI mode instead
 
 ## Troubleshooting
 
-### "DB Connection failed"
+### Connection Failed
 - Verify MySQL credentials
-- Check if PDO_MYSQL or mysqli extension is enabled
-- Confirm MySQL server is running and accessible
-- Check firewall rules for MySQL port (3306)
+- Check PDO_MYSQL or mysqli extension
+- Confirm MySQL server is running
+- Check firewall rules (port 3306)
 
-### "Cannot open file for writing"
-- Verify directory exists and is writable
-- Check disk space availability
-- Ensure PHP process has write permissions
+### Cannot Write File
+- Check directory permissions
+- Verify disk space
+- Ensure PHP has write access
 
-### Out of Memory Errors
-- Reduce --max-rows value
-- Ensure memory_limit setting is adequate
-- Use CLI instead of web interface
+### Out of Memory
+- Reduce `--max-rows` value
+- Use CLI instead of web
+- Check memory_limit in php.ini
 
-### Slow Export Performance
-- Increase --max-rows for smaller row sizes
-- Enable gzip compression
-- Check MySQL server load
-- Ensure indexes exist on large tables
+### Table Already Exists (Import)
+- Use `--ignore-table-exists`
+- Drop tables manually first
+- Check you're importing to correct database
+
+### Resume Not Working
+- Verify checkpoint file path is writable
+- Check checkpoint file exists
+- Ensure correct checkpoint path specified
+
+## Security
+
+1. Never expose web interface without authentication
+2. Use environment variables for passwords:
+   ```bash
+   export MYSQL_PASSWORD="secret"
+   php QuickMyDump.php --pass="${MYSQL_PASSWORD}"
+   ```
+3. Secure backup files:
+   ```bash
+   chmod 600 /backups/*.sql.gz
+   ```
+4. Secure config files:
+   ```bash
+   chmod 600 config.json
+   ```
+5. Delete backups after transfer
+6. Use SSL/TLS for MySQL connections
+
+## Advantages Over mysqldump
+
+- Pure PHP (no mysqldump binary needed)
+- Resume capability for failed operations
+- Better memory efficiency
+- Flexible table filtering
+- Built-in web interface
+- Single-file deployment
+- Configuration file support
+- Progress tracking
+- Checkpoint recovery
+
+## Limitations
+
+- Does not support incremental backups
+- Binary data may need `--hex-blob` flag
+- Web interface not suitable for large databases
+- One database per operation
+
+## Files
+
+- `QuickMyDump.php` - Export tool
+- `QuickMyImport.php` - Import tool  
+- `README.md` - This documentation
+- `config.example.json` - Configuration examples
+- `SUGGESTIONS.txt` - Development roadmap
 
 ## Contributing
 
-Contributions are welcome. Please submit issues and pull requests on GitHub.
+Contributions welcome! Submit issues and pull requests on GitHub.
+
+Future features:
+- Parallel table processing
+- Remote storage (S3, FTP)
+- Email notifications
+- Encryption support
+- Alternative compression formats
 
 ## License
 
-This project is open source. Check the repository for license details.
+Open source - see repository for license details.
 
 ## Author
 
@@ -304,3 +511,7 @@ ProgrammerNomad
 ## Repository
 
 https://github.com/ProgrammerNomad/QuickMyDump
+
+## Support
+
+For issues or questions, open an issue on GitHub.
